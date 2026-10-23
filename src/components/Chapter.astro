@@ -1,0 +1,57 @@
+---
+// Log card: Roman numeral (serif, hatch-cut) on a dive-log sheet: depth readout, tracing overlay,
+// Ben-Day patch, crop marks, edge depth scale and a 12-col footer of colour bar / log / trace / code.
+import ColorBar from './ColorBar.astro';
+import Reg from './Reg.astro';
+import EdgeRuler from './EdgeRuler.astro';
+import Wave from './Wave.astro';
+import Barcode from './Barcode.astro';
+const { id, num, act, title, stamp, note, depth = 0, dark = false } = Astro.props;
+const D = String(depth).padStart(4, '0');
+const zone = depth === 0 ? 'SURFACE' : depth < 200 ? 'EPIPELAGIC' : depth < 1000 ? 'MESOPELAGIC' : 'BATHYPELAGIC';
+const temp = depth === 0 ? 27 : depth <= 12 ? 26 : depth <= 200 ? 14 : 5;
+const light = depth === 0 ? '100%' : depth <= 12 ? '62%' : depth <= 200 ? '1%' : '0% · APHOTIC';
+const bar = (1 + depth / 10).toFixed(1);
+const range = depth >= 1000 ? [0, 1200] : depth >= 200 ? [0, 400] : [0, 50];
+const log = [
+  `${act}.01  ${dark ? 'ASCENT' : 'DESCENT'} OK`, `${act}.02  DEPTH ${D} M`, `${act}.03  PRESS ${bar} BAR`, `${act}.04  TEMP ${String(temp).padStart(2, '0')} °C`,
+  `${act}.05  ZONE ${zone}`, `${act}.06  LIGHT ${light}`,
+];
+---
+<section class:list={['chapter', { dark }]} id={id} aria-label={`Log ${num}: ${title}`}>
+  <div class="cc-head"><span>REC ● {stamp}</span><span class="dots"></span><span>DEPTH {D} M</span><span>LOG {num} <em>/IV</em></span></div>
+  <div class="cc-deco" aria-hidden="true">
+    <div class="cc-trace" data-depth="0.18">
+      <Reg cls="r1" size={20} /><Reg cls="r2" size={20} /><Reg cls="r3" size={20} />
+      <span class="tr-cap">OVERLAY {act} · TRACE / NOT FOR PRINT</span>
+    </div>
+    <div class="cc-benday benday" data-depth="0.45"></div>
+    <div class="cc-ht ht" data-depth="-0.2"></div>
+  </div>
+  <EdgeRuler from={range[0]} to={range[1]} mark={depth} side="right" />
+  <div class="cc-body">
+    <div class="cc-l">
+      <span class="cc-lab stencil">DIVE LOG</span>
+      <span class="cc-act">DEPTH {D} M <em>/{num}</em></span>
+      <dl class="cc-read">
+        <dt>ZONE</dt><dd>{zone}</dd>
+        <dt>PRESS</dt><dd>{bar} BAR</dd>
+        <dt>TEMP</dt><dd>{temp} °C</dd>
+        <dt>LIGHT</dt><dd>{light}</dd>
+      </dl>
+    </div>
+    <div class="cc-numwrap"><i class="crops"></i><div class="cc-num rainy" aria-hidden="true">{num}</div><span class="cc-fig mono-s">FIG.{act}·{num}</span></div>
+    <div class="cc-r">
+      <h2 class="cc-title">{title}</h2>
+      <p class="cc-note serif-i">{note}</p>
+      <span class="cc-case mono-s">CASE ZZH-2000-{act} · DIVE 07 · LOG {dark ? 'B' : 'A'}</span>
+    </div>
+  </div>
+  <div class="cc-foot" aria-hidden="true">
+    <div class="cf-bar"><ColorBar /></div>
+    <ol class="cf-log micro">{log.map((l) => <li>{l}</li>)}</ol>
+    <div class="cf-wave"><span class="mono-s">SONAR TRACE · PING {act}</span><Wave w={420} h={44} seed={+act * 3} /></div>
+    <div class="cf-code"><Reg size={18} /><Barcode code={`GHS ${act} ${D}`} /></div>
+  </div>
+  <div class="cc-panels" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+</section>

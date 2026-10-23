@@ -1,0 +1,8 @@
+---
+// Press colour-control strip, limited to the site palette (ink greys, paper, Klein).
+const { label = true, cls = '' } = Astro.props;
+const sw = [['K100', '#0E0E0E'], ['K80', '#3A3A39'], ['K60', '#6B6A67'], ['K40', '#96948E'], ['K20', '#C9C5BC'], ['PPR', '#ECE9E2'], ['IKB', '#002FA7'], ['IKB50', '#5A82FF']];
+---
+<div class:list={['cbar', cls]} aria-hidden="true">
+  {sw.map(([n, c]) => <i style={`background:${c}`}>{label && <b>{n}</b>}</i>)}
+</div>

@@ -1,0 +1,10 @@
+---
+const { code } = Astro.props;
+let s = 7; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+const bars = []; let x = 0;
+for (let i = 0; i < 60; i++) { const w = [1, 1, 2, 3][Math.floor(rnd() * 4)]; if (rnd() < 0.6) bars.push([x, w]); x += w + [1, 2][Math.floor(rnd() * 2)]; }
+---
+<svg class="barcode" viewBox={`0 0 ${x} 72`} width={x} height="72" aria-hidden="true">
+  {bars.map(([bx, w]) => <rect x={bx} y="0" width={w} height="55" fill="#0E0E0E" />)}
+  <text x="0" y="69" font-family="JetBrains Mono" font-size="10" fill="#0E0E0E">{code}</text>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "name": "zzh-homepage",
+  "type": "module",
+  "version": "3.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "preview:single": "node tools/make-preview.mjs",
+    "fonts": "bash tools/subset-fonts.sh",
+    "assets": "python3 ../art3/make_assets.py"
+  },
+  "dependencies": {
+    "astro": "^7.4.1",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.27"
+  }
+}

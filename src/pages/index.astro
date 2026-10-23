@@ -1,0 +1,420 @@
+---
+import Base from '../layouts/Base.astro';
+import Chapter from '../components/Chapter.astro';
+import Stamp from '../components/Stamp.astro';
+import Barcode from '../components/Barcode.astro';
+import ColorBar from '../components/ColorBar.astro';
+import Reg from '../components/Reg.astro';
+import EdgeRuler from '../components/EdgeRuler.astro';
+import Wave from '../components/Wave.astro';
+import Sonar from '../components/Sonar.astro';
+import Specimen from '../components/Specimen.astro';
+
+// ---- hero geometry (design units: a 1440 x 900 stage, = brut/compose2.py / 2) ----
+const ML = 32, GUT = 24, W = 1440, TOP = 75, BOT = 835;
+const cw = (W - 2 * ML - GUT * 11) / 12;
+const colx = Array.from({ length: 12 }, (_, i) => ML + i * (cw + GUT));
+const kx0 = colx[10] + 20;
+const vlines = colx.flatMap((x) => [x, x + cw]);
+const hlines = []; for (let y = TOP; y < BOT; y += 120) hlines.push(y);
+const plusX = [ML, ...colx.slice(0, 11).map((c) => c + cw + GUT / 2), W - ML];
+const r = (n) => Math.round(n * 10) / 10;
+// v3.1: depth scales on both stage edges (1 tick = 10 px; label every 120 px = one grid row)
+const eTicks = []; for (let y = TOP; y <= BOT; y += 10) eTicks.push(y);
+const tide = [['MON', '04:12', '2.1', '10:31', '0.4'], ['TUE', '04:58', '2.2', '11:15', '0.3'], ['WED', '05:41', '2.3', '11:58', '0.3'], ['THU', '06:22', '2.2', '12:40', '0.4'], ['FRI', '07:03', '2.0', '13:21', '0.5']];
+
+const works = [
+  { n: '01', id: 'UI-HANDBOOK', img: 'keycaps', tag: 'A hands-on interface course', body: 'A complete interface course, from design tokens to advanced interactions. Every component ships with a live preview, when-to-use notes, implementation tips, accessibility details and copy-ready code.', spec: [['FORMAT', 'TUTORIAL / WEB'], ['STACK', 'REACT · TAILWIND CSS 4'], ['SCOPE', '115 COMPONENTS / 10 CHAPTERS']], live: 'https://zzhzhouzhou.github.io/UI-handbook/', src: 'https://github.com/zzhzhouzhou/UI-handbook', note: 'Exhibit A: keycaps & swatch cards.' },
+  { n: '02', id: 'ZZH-MUSIC-PLAYER', img: 'cassette', tag: 'A music player, written in Rust', body: 'A desktop player with a waveform progress bar, a smart accent colour that follows what you play, and playback that resumes where you left it.', spec: [['FORMAT', 'DESKTOP APP'], ['STACK', 'RUST'], ['FEATURES', 'WAVEFORM · ACCENT · RESUME']], live: null, src: 'https://github.com/zzhzhouzhou/zzh-music-player', note: 'Exhibit B: one cassette, rewound.' },
+  { n: '03', id: 'ZZZ-TIME', img: 'hourglass', tag: 'A minimal sleep-cycle calculator', body: 'Works out bedtimes and wake-up times in whole sleep cycles, so the alarm lands between dreams. One question, one answer, nothing else on the page.', spec: [['FORMAT', 'WEB TOOL'], ['STACK', 'HTML · CSS · JS'], ['UNIT', 'ONE SLEEP CYCLE']], live: 'https://zzhzhouzhou.github.io/zzz-time/', src: 'https://github.com/zzhzhouzhou/zzz-time', note: 'Exhibit C: sand, mid-fall.' },
+  { n: '04', id: 'BILI-TRANSLATE-PROXY', img: 'tv', tag: 'A translate API in disguise', body: "A zero-dependency Python proxy that exposes Bilibili's free translate API as an OpenAI-compatible endpoint, so any client can talk to it.", spec: [['FORMAT', 'CLI / PROXY'], ['STACK', 'PYTHON · ZERO DEPS'], ['SPEAKS', 'OPENAI-COMPATIBLE']], live: null, src: 'https://github.com/zzhzhouzhou/bili-translate-proxy', note: 'Exhibit D: tuned to channel 07.' },
+];
+const rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+const links = [
+  { k: 'GITHUB', v: '@zzhzhouzhou', href: 'https://github.com/zzhzhouzhou', no: 'A-01', seat: 'CODE' },
+  { k: 'BILIBILI', v: 'space/1058529366', href: 'https://space.bilibili.com/1058529366', no: 'A-02', seat: 'VIDEO' },
+  { k: 'EMAIL', v: 'zzhzhou2026@gmail.com', href: 'mailto:zzhzhou2026@gmail.com', no: 'A-03', seat: 'MAIL' },
+];
+---
+<Base>
+  <!-- hidden sources for canvases (kept as <img> so the single-file preview can inline them) -->
+  <div class="srcs" aria-hidden="true">
+    <img id="srcShark" src="/img/v3/shark.webp" alt="" width="2400" height="738" decoding="async" />
+    <img id="srcSharkSm" src="/img/v3/shark-sm.webp" alt="" width="1200" height="369" decoding="async" />
+  </div>
+
+  <!-- ===== global chrome ===== -->
+  <canvas id="rain" class="rain" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vhs" id="vhs" aria-hidden="true"><i class="vhs-band"></i><i class="vhs-band b2"></i><span class="vhs-tag">◀◀ TRACKING</span></div>
+  <div class="cursor" id="cursor" aria-hidden="true"><i class="ch-h"></i><i class="ch-v"></i><b class="ch-box"></b><span class="ch-xy" id="cxy">X 0000 · Y 0000</span></div>
+  <div class="fxlayer" id="fx" aria-hidden="true"></div>
+  <div class="leap" id="leap" aria-hidden="true"><img src="/img/v3/shark-sm.webp" alt="" width="1200" height="369" /></div>
+  <nav class="hud" aria-label="Sections">
+    <span class="hud-ch" id="hudCh">LOG 0 <em>/IV</em></span>
+    <span class="hud-tc" id="hudTc">2000 · DEPTH 0000 M · 00:00:00</span>
+  </nav>
+
+  <!-- ===== S0 loader: VHS boot ===== -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <canvas id="static" width="192" height="120"></canvas>
+    <div class="ld-scan"></div>
+    <div class="ld-ui">
+      <div class="ld-top"><span>PLAY</span><span id="ldMode" class="blink">◀◀ REWIND</span><span>SP · CH 03</span></div>
+      <div class="ld-mid">
+        <div class="ld-year"><span id="ldYear">2000</span><i>→</i><span class="dim">2026</span></div>
+        <div class="ld-sub">SUBJECT: ZZH · DIVE 07 · GARBAGE HUMAN STUDIO FIELD ARCHIVE</div>
+      </div>
+      <div class="ld-bot"><span id="ldTc">00:00:00:00</span><span id="ldLog">&gt; INSERTING TAPE…</span><span>TRACKING ■■■□□</span></div>
+    </div>
+  </div>
+
+  <main id="top">
+    <!-- ===== S1 HERO (the v10 cover, live) ===== -->
+    <section class="hero" id="hero" aria-label="ZZH — a developer who draws interfaces">
+      <div class="stage" id="stage">
+        <svg class="h-grid" viewBox="0 0 1440 900" aria-hidden="true">
+          <g stroke="#D6D2CA" stroke-width="1">
+            {vlines.map((x) => <line x1={r(x)} y1={TOP} x2={r(x)} y2={BOT} />)}
+            {hlines.map((y) => <line x1={ML} y1={y} x2={W - ML} y2={y} />)}
+          </g>
+          <g class="pluses" stroke="#0E0E0E" stroke-width="1">
+            {plusX.flatMap((x) => [TOP, BOT].map((y) => <path class="plus" d={`M${r(x - 7)} ${y}h14M${r(x)} ${y - 7}v14`} />))}
+          </g>
+          <g class="colnums" font-family="JetBrains Mono" font-size="10" fill="#96948E">
+            {colx.map((x, i) => <text x={r(x + 3)} y={TOP + 15}>{String(i + 1).padStart(2, '0')}</text>)}
+          </g>
+        </svg>
+        <div class="h-blue" style={`left:${r(kx0)}px`}></div>
+
+        <!-- v3.1 edge depth scales (left margin in ink, right edge of the Klein column in paper) -->
+        <svg class="h-edge" viewBox="0 0 1440 900" aria-hidden="true">
+          <g stroke="#0E0E0E" stroke-width="1">{eTicks.map((y) => <line x1="0" y1={y} x2={(y - TOP) % 120 === 0 ? 14 : (y - TOP) % 60 === 0 ? 9 : 5} y2={y} />)}</g>
+          <g font-family="JetBrains Mono" font-size="7" fill="#0E0E0E">{hlines.map((y, i) => <text x="2" y={y + 11}>{String(i * 12).padStart(3, '0')}</text>)}</g>
+          <g stroke="#ECE9E2" stroke-width="1" opacity=".75">{eTicks.map((y) => <line x1={1440 - ((y - TOP) % 120 === 0 ? 14 : (y - TOP) % 60 === 0 ? 9 : 5)} y1={y} x2="1440" y2={y} />)}</g>
+          <g font-family="JetBrains Mono" font-size="7" fill="#ECE9E2" opacity=".8" text-anchor="end">{hlines.map((y, i) => <text x="1437" y={y + 11}>{String(i * 12).padStart(3, '0')}M</text>)}</g>
+        </svg>
+        <!-- v3.1 tide table + mini scope in the Klein column -->
+        <div class="h-tide" style={`left:${r(kx0 + 17)}px;top:92px`}>
+          <div class="ht-h"><span>TIDE TABLE</span><span>STN 07</span></div>
+          <table><thead><tr><th></th><th>HW</th><th>M</th><th>LW</th><th>M</th></tr></thead>
+            <tbody>{tide.map((t) => <tr>{t.map((c) => <td>{c}</td>)}</tr>)}</tbody></table>
+          <Wave w={184} h={22} seed={4} />
+        </div>
+        <div class="h-cbar" style="left:600px;top:27px"><ColorBar label={false} /><span>K / IKB · PROOF 07</span></div>
+        <Reg cls="h-reg" size={18} style="left:566px;top:23px" />
+        <Reg cls="h-reg" size={18} style="left:985px;top:23px" />
+
+        <!-- receipt sits under the shark (shark overprints it) -->
+        <div class="h-receipt float" data-amp="2" style="left:985px;top:90px">
+          <div class="rc-in">
+            <b>GHS / TILL 07</b>
+            <span>RECEIPT 2000-2026</span>
+            <span>-----------------</span>
+            <span>1 SHARK, WHALE ..</span><span>&nbsp; RHINCODON 0.00</span>
+            <span>312 SPOTS ...... 0</span><span>1 DORSAL ....... 0</span>
+            <span>DEPS ........... 0</span><span>COFFEE ....... 3.50</span>
+            <span>SLEEP ........ -6H</span>
+            <span>-----------------</span>
+            <b>TOTAL ......  3.50</b>
+            <span>PAID IN RUST</span><span>THANK YOU · KEEP</span><span>THE RECEIPT</span>
+          </div>
+        </div>
+        <i class="tape" style="left:975px;top:84px;width:90px;transform:rotate(-7deg)"></i>
+
+        <canvas class="h-shark" id="sharkCv" aria-hidden="true"></canvas>
+
+        <svg class="h-zzh" id="zzh" viewBox="0 0 1440 900" aria-hidden="true">
+          <g transform="scale(1.0578 1)" font-family="HOS Cond" font-weight="900" font-size="700" fill="#FAF7F0">
+            <text class="zl" x="19.75" y="1037.5">Z</text>
+            <text class="zl" x="369.75" y="1037.5">Z</text>
+            <text class="zl" x="719.75" y="1037.5">H</text>
+          </g>
+        </svg>
+        <h1 class="sr">ZZH — Zhou, a developer who draws interfaces</h1>
+
+        <!-- letterpress ZH/OU in the Klein column -->
+        <svg class="h-press" viewBox="0 0 1440 900" aria-hidden="true">
+          <defs>
+            <filter id="press" x="-4%" y="-4%" width="108%" height="108%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="4" result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="rough" />
+              <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="11" result="sp" />
+              <feColorMatrix in="sp" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  15 0 0 0 -9.7" result="holes" />
+              <feTurbulence type="fractalNoise" baseFrequency="0.004 0.42" numOctaves="1" seed="2" result="st" />
+              <feColorMatrix in="st" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  11 0 0 0 -7.5" result="streak" />
+              <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="9" result="lo" />
+              <feColorMatrix in="lo" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.4 0 0 0 -0.55" result="starve" />
+              <feComposite in="rough" in2="holes" operator="out" result="a" />
+              <feComposite in="a" in2="streak" operator="out" result="b" />
+              <feComponentTransfer in="starve" result="starve2"><feFuncA type="table" tableValues="1 0.86" /></feComponentTransfer>
+              <feComposite in="b" in2="starve2" operator="in" />
+            </filter>
+          </defs>
+          <g font-family="HOS Cond" font-weight="900" font-size="152.1" filter="url(#press)">
+            <g class="ghost" fill="#121726" transform="translate(-6 5)"><text x="1231.5" y="496.4">ZH</text><text x="1231.5" y="653.5">OU</text></g>
+            <g class="inkp" fill="#F6F3EA"><text x="1231.5" y="496.4">ZH</text><text x="1231.5" y="653.5">OU</text></g>
+          </g>
+        </svg>
+        <ul class="h-works" style={`left:${r(kx0 + 17)}px;top:676px`}>
+          <li class="hw-h">SELECTED WORKS</li>
+          {works.map((w) => <li><a href={`#case-${w.n}`} data-scr>{w.n} {w.id.replace('ZZH-', '').replace('-TRANSLATE', '')}</a></li>)}
+        </ul>
+
+        <!-- annotations -->
+        <svg class="h-notes" viewBox="0 0 1440 900" aria-hidden="true">
+          <g font-family="JetBrains Mono" font-size="12">
+            <g class="note n1"><rect x="31" y="101" width="186" height="38" fill="#0E0E0E" /><text x="37" y="114" fill="#F8F6F0"><tspan>FIG.01 — RHINCODON TYPUS</tspan><tspan x="37" dy="16">DISSOLVE: ASCII <tspan id="dissPct">20</tspan>%</tspan></text>
+              <path class="lead" d="M124 141L168.7 265" stroke="#0E0E0E" stroke-width="1" fill="none" /><circle cx="168.7" cy="265" r="3.5" stroke="#0E0E0E" stroke-width="1.5" fill="none" /></g>
+            <g class="note n2"><text x="402" y="114" fill="#0E0E0E">DORSAL / 1ST</text>
+              <path class="lead" d="M445 122L573.7 240" stroke="#0E0E0E" stroke-width="1" fill="none" /><circle cx="573.7" cy="240" r="3.5" stroke="#0E0E0E" stroke-width="1.5" fill="none" /></g>
+            <g class="note n3"><rect x="736" y="101" width="91" height="38" fill="#0E0E0E" /><text x="742" y="114" fill="#F8F6F0"><tspan>SPOTS 312</tspan><tspan x="742" dy="16">MOUTH 1.4M</tspan></text>
+              <path class="lead" d="M781 141L1112 355" stroke="#0E0E0E" stroke-width="1" fill="none" /><circle cx="1112" cy="355" r="3.5" stroke="#0E0E0E" stroke-width="1.5" fill="none" /></g>
+          </g>
+          <g stroke="#0E0E0E" stroke-width="1" fill="none">
+            <circle cx="42" cy="90" r="11" /><path d="M27 90h30M42 75v30" />
+            <circle cx={r(kx0 - 30)} cy={BOT - 20} r="11" /><path d={`M${r(kx0 - 45)} ${BOT - 20}h30M${r(kx0 - 30)} ${BOT - 35}v30`} />
+          </g>
+          <path class="scribble" d="M898.7 650 C 910 638, 920 628, 928.7 630 S 950 645, 963.7 640 S 975 622, 978.7 615" stroke="#002FA7" stroke-width="3" stroke-linecap="round" fill="none" />
+          <text x="37" y="827" font-family="JetBrains Mono" font-size="9" fill="#96948E">V.2026.10 / BUILD 0007 / CASE ZZH-2000 / DIVE 07</text>
+        </svg>
+
+        <p class="h-state" style="left:60px;top:533px">A DEVELOPER WHO<br />DRAWS INTERFACES.</p>
+
+        <div class="h-keycap float" data-amp="3" style="left:22px;top:660px"><img src="/img/v3/keycap.webp" alt="" width="534" height="420" /></div>
+        <i class="tape" style="left:57px;top:652px;width:110px;transform:rotate(9deg)"></i>
+
+        <div class="h-term float" data-amp="1.5" style="left:620px;top:705px">
+          <div class="tm-bar"><i></i><i></i><i></i><span>zsh — 80×4</span></div>
+          <pre class="tm-body" id="term"></pre>
+        </div>
+        <a class="h-collab" href="#contact" data-mag style="left:620px;top:670px">● OPEN FOR COLLAB</a>
+        <div class="h-barcode" style="left:397px;top:715px"><Barcode code="0 2026 1023 ZZH 07" /></div>
+        <div class="h-stamp" style="left:1052px;top:675px"><Stamp text="GARBAGE HUMAN STUDIO · EST.2026 · " mid="ZZH" /></div>
+
+        <div class="h-top">
+          <a class="logo" href="#top" data-mag>ZZH</a>
+          <span class="h-sub" data-scr>GARBAGE HUMAN STUDIO — INDEX 00 / FIG.01</span>
+          <nav class="h-nav"><a href="#works" data-mag>[WORK]</a> <a href="#who" data-mag>[ABOUT]</a> <a href="#contact" data-mag>[CONTACT]</a> <span>2026</span></nav>
+        </div>
+        <div class="h-scroll" style="left:955px;top:800px">↓ SCROLL / <span id="scrollPct">000</span>%</div>
+        <div class="h-tear" id="tear" aria-hidden="true"></div>
+      </div>
+      <div class="marquee mq-hero" data-speed="60" aria-hidden="true">
+        <div class="mq-track"><span>GARBAGE HUMAN STUDIO <i>*</i> <b>RUST * C++ * TYPESCRIPT *</b> ARCH LINUX * ZZH * GARBAGE HUMAN STUDIO <i>*</i> <b>RUST * C++ * TYPESCRIPT *</b> ARCH LINUX * ZZH * </span></div>
+      </div>
+    </section>
+
+    <!-- ===== S2 CHAPTER I — WHO ===== -->
+    <Chapter id="ch1" num="I" act="01" title="WHO" depth={12} stamp="2000.10.23 · DESCENT BEGINS" note="A specimen is entered into the field archive." />
+    <section class="sec who" id="who" aria-labelledby="whoH">
+      <EdgeRuler from={0} to={50} mark={12} side="left" />
+      <header class="sec-head"><span>LOG I — WHO</span><span class="dots"></span><span>FILE ZZH-2000-0007</span><span class="dim">/04</span></header>
+      <div class="who-l">
+        <h2 id="whoH" class="split-h"><span class="serif-i">Who is</span><span class="rainy big">SUBJECT</span><span class="rainy big stencil">ZZH<em>?</em></span></h2>
+        <p class="lede">I'm Zhou — zzh on the internet. A developer who draws interfaces: I write <b>Rust</b>, <b>C++</b> and <b>TypeScript</b>, live in <b>Arch Linux</b>, and run <b>Garbage Human Studio</b>, a one-person studio for small, careful software. I like tools that feel as considered as a poster.</p>
+        <ul class="stats">
+          <li><b data-count="4">0</b><i>/04</i><span>CASES ON FILE</span></li>
+          <li><b data-count="115">0</b><i>/115</i><span>UI COMPONENTS DRAWN</span></li>
+          <li><b data-count="3">0</b><i>/03</i><span>LANGUAGES SPOKEN TO MACHINES</span></li>
+          <li><b data-count="0">0</b><i>/∞</i><span>DEPENDENCIES, IDEALLY</span></li>
+        </ul>
+        <div class="who-annex" aria-hidden="true">
+          <ol class="legend micro">
+            <li><i class="cn">1</i>DOSSIER · FILED 2000</li>
+            <li><i class="cn">2</i>FIELD NOTE № 07</li>
+            <li><i class="cn">3</i>ADMIT ONE · STUDIO VISIT</li>
+            <li><i class="cn">4</i>BACKUP DISK · 1.44 MB</li>
+            <li><i class="cn">5</i>SPECIMEN 01 · LABEL</li>
+            <li><i class="cn">6</i>CONTROL SAMPLE · JAR</li>
+          </ol>
+        </div>
+      </div>
+      <div class="who-r" id="papers">
+        <div class="trace who-trace" data-depth="0.12" aria-hidden="true"><Reg cls="r1" size={18} /><Reg cls="r2" size={18} /><Reg cls="r3" size={18} /><span class="tr-cap">TRACE · DOSSIER OUTLINE 1:1</span></div>
+        <div class="ht who-ht" data-depth="-0.25" aria-hidden="true"></div>
+        <div class="who-film" aria-hidden="true"><div class="film"></div><span class="mono-s">CONTACT STRIP 07–16 · GHS 400 · FIELD ARCHIVE</span></div>
+        <article class="paper dossier" data-i="0">
+          <div class="ds-top"><span>DOSSIER</span><span>CASE NO. ZZH-2000-0007</span></div>
+          <div class="ds-grid">
+            <figure class="ds-photo"><img src="/img/v3/shark-sm.webp" alt="" width="1200" height="369" loading="lazy" /><figcaption>SPECIMEN · FIG.01</figcaption></figure>
+            <dl>
+              <dt>SUBJECT</dt><dd>ZZH (ZHOU)</dd>
+              <dt>ROLE</dt><dd>DEVELOPER / UI DESIGNER</dd>
+              <dt>STACK</dt><dd>RUST · C++ · TYPESCRIPT</dd>
+              <dt>OS</dt><dd>ARCH LINUX (BTW)</dd>
+              <dt>LOCATION</dt><dd>SOMEWHERE ON THE INTERNET</dd>
+              <dt>STATUS</dt><dd class="blue">● OPEN FOR COLLAB</dd>
+            </dl>
+          </div>
+          <div class="ds-foot"><span>CLEARANCE LEVEL <b>02</b> / PUBLIC</span><span>FILED 2000 → REVISED 2026</span></div>
+          <span class="ds-stamp">FILED</span>
+          <i class="clip"></i>
+          <i class="cn pin">1</i>
+        </article>
+        <article class="paper card" data-i="1">
+          <div class="cd-h"><span>FIELD NOTE № 07</span><span>/12</span></div>
+          <p class="serif-i">“Draws the interface first, then writes the code that deserves it.”</p>
+          <ol><li>Prefers zero dependencies.</li><li>Keeps a terminal open at all times.</li><li>Names things carefully, ships things slowly.</li></ol>
+          <i class="staple"></i><i class="staple s2"></i>
+          <i class="cn pin">2</i>
+        </article>
+        <article class="paper ticket" data-i="2">
+          <div class="tk-l"><b>ADMIT ONE</b><span>STUDIO VISIT · NO REFUNDS</span><span class="mono-s">SEAT 07 · ROW Z · 2000</span></div>
+          <div class="tk-r"><span>Nº</span><b>0007</b></div>
+          <i class="cn pin">3</i>
+        </article>
+        <figure class="paper obj floppy" data-i="3"><img src="/img/v3/floppy.webp" alt="" width="687" height="719" loading="lazy" /><figcaption>BACKUP_2000.IMG · 1.44 MB</figcaption><i class="cn pin">4</i></figure>
+        <article class="paper speci" data-i="4"><Specimen no="01" latin="RHINCODON TYPUS" common="Whale shark, the studio mascot" rows={[['DEPTH', '0012 M'], ['SPOTS', '312'], ['FILED', '2000 → 2026'], ['STATUS', 'GENTLE, FILTER-FEEDING']]} /><i class="washi"></i><i class="cn pin">5</i></article>
+        <figure class="paper obj jar" data-i="5"><img src="/img/v3/jar.webp" alt="" width="299" height="560" loading="lazy" /><figcaption>CONTROL SAMPLE · NOT A SHARK</figcaption><i class="cn pin">6</i></figure>
+      </div>
+    </section>
+
+    <!-- ===== S3 CHAPTER II — WORKS ===== -->
+    <Chapter id="ch2" num="II" act="02" title="WORKS" depth={200} stamp="2019 → 2026 · DRAWER 02" note="Four files, brought up from the deep." />
+    <section class="sec works" id="works" aria-labelledby="worksH">
+      <header class="sec-head"><span>LOG II — WORKS</span><span class="dots"></span><span>4 FILES / CLICK A FILE TO OPEN</span><span class="dim">/04</span></header>
+      <div class="w-pin">
+        <div class="w-cam" id="wCam"><div class="w-track" id="wTrack">
+          <div class="w-intro">
+            <p class="eyebrow">ARCHIVE · DRAWER 02</p>
+            <h2 id="worksH"><span class="serif-i">Case</span><span class="rainy big">FILES</span></h2>
+            <p class="lede">Four things I've built and kept. Small on purpose. Each one solves one problem and tries to look good doing it.</p>
+            <p class="mono-s">SCROLL → TO LEAF THROUGH · CLICK TO PUSH IN · ESC TO CLOSE</p>
+            <div class="idx" aria-hidden="true">
+              <div class="idx-h"><span>DRAWER 02 · CONTENTS</span><span>200 M</span></div>
+              <ol>{works.map((w) => <li><b>{w.n}</b>{w.id}<em>{w.spec[0][1]}</em></li>)}</ol>
+              <span class="idx-foot">GARBAGE HUMAN STUDIO · FIELD ARCHIVE · INDEX CARD 02/04</span>
+            </div>
+          </div>
+          <div class="w-film film" aria-hidden="true"></div>
+          {works.map((w, i) => (
+            <article class="case" id={`case-${w.n}`} data-i={i} tabindex="0" aria-label={`Case ${w.n}: ${w.id}`}>
+              <div class="case-in">
+                <div class="cs-tab"><span>CASE {w.n}</span><em>/04</em></div>
+                <div class="cs-strip"><span>CLASSIFIED</span><span>CLEARANCE LEVEL 02</span><span>REF ZZH-{w.n}-26</span></div>
+                <h3 class="cs-title">{w.id}</h3>
+                <p class="cs-tag serif-i">{w.tag}</p>
+                <figure class="cs-fig"><i class="benday cs-bd"></i><img src={`/img/v3/${w.img}.webp`} alt="" loading="lazy" /><figcaption><i class="cn">{i + 1}</i>{w.note}</figcaption><span class="rstamp cs-rs">RECOVERED · {['0040', '0090', '0150', '0200'][i]} M</span></figure>
+                <p class="cs-body">{w.body}</p>
+                <dl class="cs-spec">{w.spec.map(([k, v]) => <><dt>{k}</dt><dd>{v}</dd></>)}</dl>
+                <div class="cs-act">
+                  {w.live && <a class="btn" href={w.live} target="_blank" rel="noopener noreferrer" data-mag>OPEN ↗</a>}
+                  <a class="btn ghost" href={w.src || 'https://github.com/zzhzhouzhou'} target="_blank" rel="noopener noreferrer" data-mag>{w.src ? 'GITHUB ↗' : 'PROFILE ↗'}</a>
+                </div>
+                <span class="cs-num">{w.n}</span>
+                <i class="clip"></i>
+                <i class="crops"></i>
+                <i class={i % 2 ? 'washi cs-washi' : 'tape cs-tape'}></i>
+                <span class="cs-side micro">SPECIMEN {w.n} · DRAWER 02 · DEPTH {['0040', '0090', '0150', '0200'][i]} M · GHS</span>
+              </div>
+            </article>
+          ))}
+          <div class="w-end">
+            <figure class="gauge" aria-hidden="true"><img src="/img/v3/gauge.webp" alt="" width="408" height="560" loading="lazy" /><svg class="needle" viewBox="0 0 408 560"><g id="needle"><path d="M202 335L202 222" stroke="#002FA7" stroke-width="5" stroke-linecap="round" /><path d="M202 335L202 360" stroke="#002FA7" stroke-width="9" stroke-linecap="round" /><circle cx="202" cy="335" r="9" fill="#002FA7" /></g></svg><figcaption class="mono-s">GAUGE · MAX DEPTH LOGGED</figcaption></figure>
+            <span class="serif-i">end of drawer.</span><span class="mono-s">MORE ON GITHUB → @ZZHZHOUZHOU</span>
+          </div>
+        </div></div>
+        <div class="w-ruler" aria-hidden="true"><span>0000</span><span>0050</span><span>0100</span><span>0150</span><span>0200 M</span></div>
+        <div class="w-progress"><i id="wBar"></i><span id="wCount">00/04</span></div>
+      </div>
+      <div class="w-veil" id="wVeil"></div>
+    </section>
+
+    <div class="marquee mq-mid" data-speed="40" aria-hidden="true">
+      <div class="mq-track"><span>NO LOREM IPSUM WAS HARMED <i>+</i> <b>FIELD ARCHIVE 2000 → 2026</b> <i>+</i> HANDMADE IN ARCH LINUX <i>+</i> ZERO DEPENDENCIES, ONE SHARK <i>+</i> NO LOREM IPSUM WAS HARMED <i>+</i> <b>FIELD ARCHIVE 2000 → 2026</b> <i>+</i> HANDMADE IN ARCH LINUX <i>+</i> ZERO DEPENDENCIES, ONE SHARK <i>+</i> </span></div>
+    </div>
+
+    <!-- ===== S4 CHAPTER III — SIGNAL ===== -->
+    <Chapter id="ch3" num="III" act="03" title="SIGNAL" depth={1000} stamp="LIVE · CHANNEL 03" note="Down here, the only light is the signal." />
+    <section class="sec signal" id="signal" aria-labelledby="sigH">
+      <EdgeRuler from={0} to={1200} mark={1000} side="left" />
+      <header class="sec-head"><span>LOG III — SIGNAL</span><span class="dots"></span><span>INPUT DEVICE: YOUR KEYBOARD</span><span class="dim">/04</span></header>
+      <div class="sg-l">
+        <h2 id="sigH"><span class="serif-i">Send a</span><span class="rainy big stencil">SIGNAL</span></h2>
+        <p class="lede">Type anything. The keys light up and the old set prints what it hears. <span class="hint">Psst — try <kbd>Z</kbd> <kbd>Z</kbd> <kbd>H</kbd>.</span></p>
+        <div class="sg-tvrow">
+          <figure class="tv"><img src="/img/v3/tv.webp" alt="" width="627" height="540" loading="lazy" /><div class="tv-screen"><span id="tvOut">NO SIGNAL_</span></div><i class="cn tv-cn">1</i></figure>
+          <table class="freq micro" aria-hidden="true"><caption>CHANNEL PLAN</caption>
+            <tbody>{[['01', '12.0', 'PING'], ['02', '18.5', 'ECHO'], ['03', '24.0', 'KEYS'], ['04', '38.0', 'SHARK'], ['05', '50.0', 'MAIL'], ['06', '75.0', 'NOISE'], ['07', '120', 'ZZH']].map(([a, b, c]) => <tr class={a === '03' ? 'on' : ''}><td>CH {a}</td><td>{b} kHz</td><td>{c}</td></tr>)}</tbody></table>
+        </div>
+      </div>
+      <div class="sg-r">
+        <div class="kb" id="kb" aria-hidden="true">
+          <i class="crops"></i><i class="cn kb-cn">2</i>
+          {rows.map((row, ri) => <div class={`kb-row r${ri}`}>{[...row].map((k) => <span class="key" data-k={k.toLowerCase()}><b>{k}</b></span>)}</div>)}
+          <div class="kb-row r3"><span class="key wide" data-k=" "><b>SPACE</b></span></div>
+        </div>
+        <p class="kb-cap mono-s">FIG.03 — PHOTOCOPIED KEYCAPS, 1:1 · KEYS PRESSED: <span id="kcount">000</span></p>
+        <div class="sg-annex" aria-hidden="true">
+          <div class="sg-scope"><Sonar size={170} seed={3} label="RNG 1200 M" target="YOUR KEYS" /><i class="cn">3</i></div>
+          <div class="sg-log">
+            <div class="sl-h"><span>SIGNAL LOG · CH 03</span><span id="sgHz">24.0 kHz</span></div>
+            <svg class="sg-wave" id="sgWave" viewBox="0 0 300 60" preserveAspectRatio="none"><path d="M0 30H300" stroke="currentColor" stroke-width=".5" opacity=".35" /><path id="sgPath" d="M0 30H300" fill="none" stroke="#002FA7" stroke-width="1.4" vector-effect="non-scaling-stroke" /></svg>
+            <div class="ptape" id="ptape"></div>
+            <span class="mono-s">PUNCHED TAPE · 5-BIT · LAST 24 KEYS</span>
+          </div>
+        </div>
+        <figure class="cassette"><img src="/img/v3/cassette.webp" alt="" width="755" height="577" loading="lazy" /><figcaption>SIDE A · SONAR LOG · REWOUND</figcaption><i class="cn">4</i></figure>
+      </div>
+      <div class="ticker" aria-label="Now building">
+        <div class="tk-track"><span><b>NOW BUILDING</b> ▸ ZZH-MUSIC-PLAYER — WAVEFORM SEEK &amp; ACCENT COLOUR <i>+</i> <b>NOW PLAYING</b> ▸ SONAR.WAV (LOOP) <i>+</i> <b>NOW READING</b> ▸ THE ARCH WIKI, AGAIN <i>+</i> <b>NOW DRAWING</b> ▸ BUTTONS THAT FEEL LIKE BUTTONS <i>+</i> </span></div>
+      </div>
+    </section>
+
+    <!-- ===== S5 CHAPTER IV — CONTACT ===== -->
+    <Chapter id="ch4" num="IV" act="04" title="SURFACE" depth={0} stamp="ASCENT · 1000 → 0000 M" note="Everything that sinks comes back up." dark />
+    <section class="sec contact" id="contact" aria-labelledby="ctH">
+      <EdgeRuler from={0} to={50} mark={0} side="left" />
+      <header class="sec-head"><span>LOG IV — CONTACT</span><span class="dots"></span><span>BUBBLES ↑ · ASCENT 9 M/MIN</span><span class="dim">/04</span></header>
+      <div class="ct-pin">
+        <canvas id="sinkCv" class="sink" aria-hidden="true"></canvas>
+        <div class="ct-rings" data-depth="0.3" aria-hidden="true"><i></i><i></i><i></i><i></i><span>SONAR CONTACT · BRG 045°</span></div>
+        <Reg cls="ct-reg a" size={22} /><Reg cls="ct-reg b" size={22} />
+        <div class="ct-l">
+          <p class="eyebrow">SURFACING · LEAVE A MESSAGE</p>
+          <h2 id="ctH"><span class="serif-i">Say</span><span class="rainy big">HELLO</span></h2>
+          <p class="lede">Collabs, questions, a nice font you found — I read everything. Pick a ticket.</p>
+          <div class="ascent-p" aria-hidden="true">
+            <svg viewBox="0 0 300 110" class="ap-svg">
+              <g stroke="currentColor" stroke-width=".5" opacity=".35">{[0, 1, 2, 3, 4].map((i) => <line x1="28" y1={10 + i * 22} x2="296" y2={10 + i * 22} />)}</g>
+              <g font-family="JetBrains Mono" font-size="7" fill="currentColor" opacity=".7">{['0', '250', '500', '750', '1000'].map((t, i) => <text x="0" y={13 + i * 22}>{t.padStart(4, '0')}</text>)}</g>
+              <path d="M28 10L60 98L120 98L170 30L200 26L230 26L250 12L296 10" fill="none" stroke="#5A82FF" stroke-width="1.6" />
+              <circle cx="215" cy="26" r="3" fill="#5A82FF" /><text x="190" y="44" font-family="JetBrains Mono" font-size="7" fill="currentColor">SAFETY STOP 5 M · 3 MIN</text>
+              <text x="62" y="92" font-family="JetBrains Mono" font-size="7" fill="currentColor">LOG III · 1000 M</text>
+            </svg>
+            <dl class="micro"><dt>ASCENT</dt><dd>9 M/MIN</dd><dt>STOP</dt><dd>5 M · 3 MIN</dd><dt>REPLY</dt><dd>WRITTEN BY A HUMAN</dd><dt>STATUS</dt><dd>OPEN FOR COLLAB</dd></dl>
+          </div>
+        </div>
+        <ul class="tickets">
+          {links.map((l) => (
+            <li class="tix">
+              {l.href ? <a href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" data-mag>
+                <span class="tx-stub"><em>ADMIT</em><b>{l.no}</b><small>№ 2026-{l.no.slice(2)}07</small></span>
+                <span class="tx-main"><span class="tx-k">{l.k}</span><span class="tx-v">{l.v}</span></span>
+                <span class="tx-seat"><em>GATE</em>{l.seat}<i>↗</i></span>
+                <span class="tx-bc"></span>
+              </a> : <div class="tx-off">
+                <span class="tx-stub"><em>ADMIT</em><b>{l.no}</b><small>№ 2026-{l.no.slice(2)}07</small></span>
+                <span class="tx-main"><span class="tx-k">{l.k}</span><span class="tx-v">{l.v}</span></span>
+                <span class="tx-seat"><em>GATE</em>{l.seat}<i>·</i></span>
+                <span class="tx-bc"></span>
+              </div>}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div class="ct-end">
+        <div class="surface-line" aria-hidden="true"><span>0000 M — SURFACE</span><svg viewBox="0 0 1200 20" preserveAspectRatio="none"><path d="M0 10 Q 25 2 50 10 T 100 10 T 150 10 T 200 10 T 250 10 T 300 10 T 350 10 T 400 10 T 450 10 T 500 10 T 550 10 T 600 10 T 650 10 T 700 10 T 750 10 T 800 10 T 850 10 T 900 10 T 950 10 T 1000 10 T 1050 10 T 1100 10 T 1150 10 T 1200 10" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" /></svg><span>ASCENT COMPLETE · DIVE 07</span></div>
+        <p class="bye"><span class="serif-i">See you at the</span><span class="rainy big">SURFACE.</span></p>
+        <footer class="foot">
+          <span>zzh @ Garbage Human Studio</span>
+          <span>Typeface: HarmonyOS Sans © Huawei Device Co., Ltd. · Instrument Serif, Big Shoulders Stencil &amp; JetBrains Mono (SIL OFL)</span>
+          <span class="foot-cb"><ColorBar label={false} /></span>
+          <span>2000 → 2026 · <a href="#top" data-mag>BACK TO 0000 M ▲</a></span>
+        </footer>
+      </div>
+    </section>
+  </main>
+  <script src="../scripts/main.js"></script>
+</Base>

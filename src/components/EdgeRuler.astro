@@ -1,0 +1,10 @@
+---
+// Depth scale along a section edge (CSS ticks; labels by percent). mark = depth with the Klein pointer.
+const { from = 0, to = 100, mark = null, side = 'left', unit = 'M', n = 5 } = Astro.props;
+const labels = Array.from({ length: n + 1 }, (_, i) => [i / n * 100, Math.round(from + (to - from) * i / n)]);
+const mp = mark == null ? null : Math.max(0, Math.min(100, (mark - from) / (to - from) * 100));
+---
+<div class:list={['eruler', side]} aria-hidden="true">
+  {labels.map(([p, v]) => <span style={`top:${p}%`}>{String(v).padStart(4, '0')}<em>{unit}</em></span>)}
+  {mp != null && <b class="er-mark" style={`top:${mp}%`}>◀ {String(mark).padStart(4, '0')}</b>}
+</div>

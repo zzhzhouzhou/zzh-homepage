@@ -1,0 +1,11 @@
+---
+// Museum-style specimen label with punched string hole.
+const { no = '01', latin = 'RHINCODON TYPUS', common = 'Whale shark', rows = [], cls = '', style = '' } = Astro.props;
+---
+<div class:list={['spec-label', cls]} style={style}>
+  <i class="sl-hole"></i>
+  <div class="sl-top"><span>SPECIMEN {no}</span><span>GHS FIELD ARCHIVE</span></div>
+  <b class="sl-latin">{latin}</b>
+  <span class="sl-common serif-i">{common}</span>
+  <dl>{rows.map(([k, v]) => <><dt>{k}</dt><dd>{v}</dd></>)}</dl>
+</div>

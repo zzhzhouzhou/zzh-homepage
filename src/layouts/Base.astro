@@ -1,0 +1,24 @@
+---
+import '../styles/global.css';
+const { title = 'ZZH — Garbage Human Studio' } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ECE9E2" />
+    <title>{title}</title>
+    <meta name="description" content="zzh (Zhou) — a developer who draws interfaces. Rust, C++, TypeScript, Arch Linux. Garbage Human Studio." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/HarmonyOS_Sans_Condensed_Black.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="/fonts/jbmono.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/img/v3/shark.webp" as="image" type="image/webp" fetchpriority="high" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

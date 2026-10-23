@@ -1,0 +1,22 @@
+---
+// Sonar PPI scope: range rings, bearings, sweep, blips. Seeded so it is stable.
+const { size = 200, seed = 5, label = 'RNG 200 M', cls = '', target = 'RHINCODON' } = Astro.props;
+let s = seed * 104729 % 233280; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+const c = 100;
+const blips = Array.from({ length: 7 }, () => { const a = rnd() * Math.PI * 2, r = 18 + rnd() * 70; return [c + Math.cos(a) * r, c + Math.sin(a) * r, 1 + rnd() * 1.6]; });
+const ticks = Array.from({ length: 72 }, (_, i) => i * 5);
+---
+<svg class:list={['sonar', cls]} viewBox="0 0 200 200" width={size} height={size} aria-hidden="true">
+  <defs><linearGradient id={`sw${seed}`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="currentColor" stop-opacity="0" /><stop offset="1" stop-color="currentColor" stop-opacity=".35" /></linearGradient></defs>
+  <g fill="none" stroke="currentColor">
+    {[24, 48, 72, 94].map((r) => <circle cx={c} cy={c} r={r} stroke-width={r === 94 ? 1.2 : .6} stroke-dasharray={r === 48 ? '2 3' : undefined} />)}
+    <path d="M6 100H194M100 6V194M33.5 33.5L166.5 166.5M166.5 33.5L33.5 166.5" stroke-width=".4" opacity=".5" />
+    {ticks.map((t) => { const a = t * Math.PI / 180, r1 = t % 30 === 0 ? 86 : 90; return <path d={`M${(c + Math.cos(a) * r1).toFixed(1)} ${(c + Math.sin(a) * r1).toFixed(1)}L${(c + Math.cos(a) * 94).toFixed(1)} ${(c + Math.sin(a) * 94).toFixed(1)}`} stroke-width=".6" />; })}
+  </g>
+  <g class="sweep"><path d="M100 100L194 100A94 94 0 0 0 166.5 33.5Z" fill={`url(#sw${seed})`} /><path d="M100 100H194" stroke="currentColor" stroke-width="1" /></g>
+  {blips.map(([x, y, r]) => <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r={r.toFixed(1)} fill="currentColor" />)}
+  <g class="tgt"><circle cx="136" cy="74" r="4" fill="#002FA7" /><circle cx="136" cy="74" r="9" fill="none" stroke="#002FA7" stroke-width="1" /></g>
+  <text x="141" y="62" font-family="JetBrains Mono" font-size="6.5" fill="currentColor">{target}</text>
+  <text x="6" y="12" font-family="JetBrains Mono" font-size="7" fill="currentColor">{label}</text>
+  <text x="6" y="196" font-family="JetBrains Mono" font-size="7" fill="currentColor">BRG 045° · PING 07</text>
+</svg>

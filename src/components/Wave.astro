@@ -1,0 +1,18 @@
+---
+// Deterministic sonar/waveform trace (SVG), seeded.
+const { w = 300, h = 48, seed = 3, cls = '', bars = false, id } = Astro.props;
+let s = seed * 7919 % 233280; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+const N = bars ? Math.floor(w / 4) : 120;
+const pts = Array.from({ length: N }, (_, i) => {
+  const t = i / (N - 1);
+  const env = Math.pow(Math.sin(t * Math.PI), 0.8) * (0.35 + 0.65 * Math.abs(Math.sin(t * 7.3 + seed)));
+  return [t * w, env * (rnd() * 2 - 1)];
+});
+const mid = h / 2;
+const d = 'M' + pts.map(([x, y]) => `${x.toFixed(1)} ${(mid + y * mid * 0.92).toFixed(1)}`).join('L');
+---
+<svg class:list={['wave', cls]} id={id} viewBox={`0 0 ${w} ${h}`} width={w} height={h} preserveAspectRatio="none" aria-hidden="true">
+  <path d={`M0 ${mid}H${w}`} stroke="currentColor" stroke-width=".5" opacity=".35" />
+  {bars ? pts.map(([x, y]) => <rect x={x} y={mid - Math.abs(y) * mid * .92} width="2" height={Math.max(1, Math.abs(y) * mid * 1.84)} fill="currentColor" />)
+        : <path class="wv" d={d} fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" />}
+</svg>

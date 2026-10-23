@@ -1,0 +1,13 @@
+---
+const { text, mid } = Astro.props;
+const id = 'stp' + Math.random().toString(36).slice(2, 7);
+---
+<svg class="stamp" viewBox="0 0 170 170" aria-hidden="true">
+  <defs><path id={id} d="M85 85 m-62 0 a62 62 0 1 1 124 0 a62 62 0 1 1 -124 0" /></defs>
+  <g class="stamp-rot" fill="none" stroke="#002FA7">
+    <circle cx="85" cy="85" r="80" stroke-width="3" />
+    <circle cx="85" cy="85" r="56" stroke-width="1.5" />
+    <text font-family="JetBrains Mono" font-size="12.5" fill="#002FA7" stroke="none" letter-spacing="1.2"><textPath href={`#${id}`}>{text}</textPath></text>
+  </g>
+  <text x="85" y="99" text-anchor="middle" font-family="HOS Cond" font-weight="900" font-size="43" fill="#002FA7">{mid}</text>
+</svg>
