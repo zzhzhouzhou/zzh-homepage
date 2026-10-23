@@ -44,4 +44,4 @@ Meta CSP: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inlin
 `prefers-reduced-motion: reduce` skips the loader, smooth scroll, pins, canvases' animation (one static frame), cursor and flicker; the works drawer becomes a plain grid.
 
 ## Deploy
-Same as v2: GitHub Pages (Actions workflow building `dist/`), custom domain `zzh.loc.cc` (CNAME in `public/`), NodeLoc DNS pointing `zzh` at GitHub Pages. Not deployed from here.
+GitHub Pages via `.github/workflows/deploy.yml` (Astro build + Pages artifact) from `zzhzhouzhou/zzh-homepage`. Custom domain `zzh.loc.cc` (CNAME in `public/`); NodeLoc DNS: `zzh` CNAME `zzhzhouzhou.github.io`.
